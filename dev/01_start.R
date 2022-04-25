@@ -20,11 +20,11 @@
 ##
 golem::fill_desc(
   pkg_name = "periodiQ", # The Name of the package containing the App
-  pkg_title = "PKG_TITLE", # The Title of the package containing the App
-  pkg_description = "PKG_DESC.", # The Description of the package containing the App
-  author_first_name = "AUTHOR_FIRST", # Your First Name
-  author_last_name = "AUTHOR_LAST", # Your Last Name
-  author_email = "AUTHOR@MAIL.COM", # Your Email
+  pkg_title = "Periodic Arrival Queues with Balking Customers", # The Title of the package containing the App
+  pkg_description = "Self-contained Shiny app for simulation of queues.", # The Description of the package containing the App
+  author_first_name = "Boris", # Your First Name
+  author_last_name = "Lebedenko", # Your Last Name
+  author_email = "lebedenko@gmail.com", # Your Email
   repo_url = NULL # The URL of the GitHub Repo (optional)
 )
 
@@ -33,7 +33,7 @@ golem::set_golem_options()
 
 ## Create Common Files ----
 ## See ?usethis for more information
-usethis::use_mit_license("Golem User") # You can set another license here
+usethis::use_mit_license("BL") # You can set another license here
 usethis::use_readme_rmd(open = FALSE)
 # Note that `contact` is required since usethis version 2.1.5
 # If your {usethis} version is older, you can remove that param

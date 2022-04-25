@@ -1,13 +1,24 @@
 Package: periodiQ
 Title: Periodic Arrival Queues with Balking Customers
 Version: 0.0.0.9000
-Authors@R: person('Boris', 'Lebedenko', email = 'lebedenko@gmail.com', role = c('cre', 'aut'))
+Authors@R: 
+    person("Boris", "Lebedenko", , "lebedenko@gmail.com", role = c("cre", "aut"))
 Description: Self-contained Shiny app for simulation of queues.
 License: MIT + file LICENSE
 Imports: 
     config (>= 0.3.1),
+    fontawesome,
     golem (>= 0.3.2),
-    shiny (>= 1.7.1)
+    purrr,
+    shiny (>= 1.7.1),
+    shinydashboard,
+    shinydashboardPlus,
+    shinyWidgets
+Suggests: 
+    spelling,
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
 Encoding: UTF-8
+Language: en-US
 LazyData: true
-RoxygenNote: 7.1.1
+RoxygenNote: 7.1.2
