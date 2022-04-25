@@ -11,10 +11,18 @@ mod_simulation_custom_ui <- function(id) {
   ns <- NS(id)
   ## subtext html ----
   html_sub <- list(
-    HTML('<p align = "left"> Scenario C1: &gamma; = 10, &lambda;<sub>0</sub> = 10, &theta; = 1</p>'),
-    HTML('<p align = "left"> Scenario C1: &gamma; = 40, &lambda;<sub>0</sub> = 10, &theta; = 1</p>'),
-    HTML('<p align = "left"> Scenario C1: &gamma; = 1, &lambda;<sub>0</sub> = 2, &theta; = 1</p>'),
-    HTML('<p align = "left"> Scenario C1: &gamma; = 100, &lambda;<sub>0</sub> = 50, &theta; = 1</p>')
+    HTML(
+      '<p align = "left"> Scenario C1: &gamma; = 10, &lambda;<sub>0</sub> = 10, &theta; = 1</p>'
+    ),
+    HTML(
+      '<p align = "left"> Scenario C1: &gamma; = 40, &lambda;<sub>0</sub> = 10, &theta; = 1</p>'
+    ),
+    HTML(
+      '<p align = "left"> Scenario C1: &gamma; = 1, &lambda;<sub>0</sub> = 2, &theta; = 1</p>'
+    ),
+    HTML(
+      '<p align = "left"> Scenario C1: &gamma; = 100, &lambda;<sub>0</sub> = 50, &theta; = 1</p>'
+    )
   )
   tagList(
     HTML(
@@ -30,7 +38,8 @@ mod_simulation_custom_ui <- function(id) {
     ),
     ## parameter values choices ----
     dropdownButton(
-      inline = TRUE,width = 12,
+      inline = TRUE,
+      width = 12,
       circle = FALSE,
       icon = icon("gear"),
 
@@ -93,12 +102,17 @@ mod_simulation_custom_ui <- function(id) {
       )
     ),
     ##
-    actionBttn(inputId = "simulation_go",label = "generate!",icon = icon("play"),color = "royal")
+    actionBttn(
+      inputId = "simulation_go",
+      label = "generate!",
+      icon = icon("play"),
+      color = "royal"
+    )
 
 
 
 
-)
+  )
 
 
 }
@@ -111,21 +125,18 @@ mod_simulation_custom_server <- function(id) {
     ns <- session$ns
 
 
-    res <- eventReactive(eventExpr = input$simulation_go,
-                         valueExpr = {
-                           ans <-
-                             full_simulation(n = input$n_effective,
-                                             params = params())
-
-
-
-                           ans
-                         })
-    return(res)
-
+    reactive(param_list(
+      gamma = input$gamma,
+      lambda_0 = input$lambda_0,
+      theta =input$theta,
+      eta = input$eta,
+      mu = input$mu,
+      s = input$s
+    ))
 
   })
-}
+  }
+
 
 ## To be copied in the UI
 # mod_simulation_custom_ui("simulation_custom_1")

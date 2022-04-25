@@ -1,0 +1,280 @@
+#' Plot the rate function
+#'
+#' @param params  names list of parameters (output of 'listParams()').
+#' @param n_cycles of cycles to plot (defaults to 5)
+#' @importFrom magrittr %>%
+#' @export
+#'
+#' @examples
+#' pltRate(exampleParams())
+pltRate <- function(params, n_cycles = 2) {
+  gamma <- params$gamma
+  lambda_0 <- params$lambda_0
+  lam <- function(t) {
+    lambda_0 + (gamma / 2) * (cos(2 * pi * t) + 1)
+  }
+  graphics::curve(
+    lam,
+    from = 0,
+    to = n_cycles,
+    lwd = 2,
+    xlab = "time",
+    ylab = expression(lambda(t)),
+    main =  bquote("Parameters:" ~ gamma == .(gamma) ~ "and" ~ lambda[0] == .(lambda_0))
+  )
+}
+
+
+#' Plot the queue dynamics in a specified time interval
+#'
+#' @param from_to vector of start and stop of the time interval. Defaults to c(1,2).
+#' @param RES full simulations results list
+#' @param params scenario parameters
+#' @importFrom magrittr %>%
+#' @return plot only
+#' @export
+#'
+#' @examples
+#' R <- exampleDataRES()
+#' pltQueueInterval(RES = R, params = exampleParams())
+
+pltIntervalDynamics <- function(RES, from_to = c(0, 1), params) {
+  from <-  from_to[1]
+  to <- from_to[2]
+  lambda <- rate_factory(params)
+  dat <- RES$simulator
+  # partial data for the purpose of this plot:
+
+  pdat <- dat %>%
+    mutate(cum_arrival = cumsum(arrival)) %>%
+    mutate(rate = lambda(cum_arrival)) %>%
+    filter(cum_arrival >= from, cum_arrival <= to)
+
+
+
+  p1 <-
+    lattice::xyplot(
+      queue ~ cum_arrival,
+      type = "s",
+      lwd = 2,
+      data = pdat,
+      xlab = "time",
+      col = "blue"
+    )
+
+  p2 <-
+    lattice::xyplot(
+      rate ~ cum_arrival,
+      data = pdat,
+      type = "l",
+      col = "purple",
+      lwd = 3,
+      lty = 3,
+      key = list(
+        #corner = c(0,0),
+        # space = c("top"),
+        title = "Arrival rate and queue length",
+        lines =
+          list(
+            col = c("purple", "blue"),
+            lty = c(3, 1),
+            lwd = c(3, 2)
+          ),
+        text =
+          list(c(expression(lambda(
+            t
+          )), expression(Q(
+            t
+          ))))
+      )
+    )
+
+  latticeExtra::doubleYScale(p1, p2, add.ylab2 = T)
+}
+
+
+
+#' Plot the queue dynamics in a specified time interval
+#'
+#' @param segments number of segments to divide one cycle into. Defaults to 24 (hours per day).
+#' @param RES full simulations results list
+#' @param params scenario parameters
+#' @importFrom magrittr %>%
+#' @export
+pltArrivalsByTimeSegment <- function(segments = 24, RES, params) {
+  if (length(segments) != 1 || segments <= 0)
+    stop ("number of segments has to be a positive integer")
+  A_tilde <- cumsum(RES$Aj)
+  time_of_day <- A_tilde - trunc(A_tilde)
+  breaks <- seq(0, 1, by = 1 / segments)
+  arrivals_segmented <- cut(time_of_day, breaks)
+  levels(arrivals_segmented) <- 1:segments
+  dat <-
+    data.frame(
+      time = time_of_day,
+      queue = RES$Qj,
+      waiting = pmax(RES$Qj - params$s, 0)
+    )
+  dat$segment <- cut(dat$time, breaks, labels = 1:segments)
+  dat <- dat %>% group_by(segment) %>% summarise(L = mean(queue),
+                                                 Lw = mean(waiting),
+                                                 arrivals = n())
+  p1 <-
+    lattice::xyplot(
+      arrivals ~ segment,
+      data = dat,
+      type = "h",
+      lwd = 3,
+      lty = 3,
+      col = 1
+    )
+  p2 <-
+    lattice::xyplot(
+      dat$Lw ~ as.numeric(segment) - 0.5,
+      data = dat,
+      type = "h",
+      lty = 1,
+      ylab = "No. Waiting",
+      col = 2,
+      lwd = 4,
+      key = list(
+        lines = list(col = 1:2 , lwd = 3:4),
+        text = list(lab = c(
+          'Arrivals/segment', 'No. waiting / segment'
+        )),
+        title = "Arrivals and queue length"
+      )
+    )
+  latticeExtra::doubleYScale(p1, p2, add.ylab2 = T, under =)
+}
+
+
+
+# pltPatienceByJoin <- function(RES) {
+#   dat <- RES$simulator
+#   dat.j <- dat %>%
+#     filter(join == 1) %>% as_tibble()
+#   dat.ext <- dplyr::bind_rows(
+#     dat %>% mutate(customer = "all") ,
+#     dat.j %>% mutate(customer = "joined"),
+#     dat %>% filter(join == 0) %>% mutate(customer = "balked")
+#   )
+#
+#   # patience boxplots
+#   pl_patience_boxplots <-
+#     dat.ext %>%
+#     ggplot() +
+#     aes(x = sqrt(patience), fill = customer) +
+#     geom_boxplot(notch = TRUE) +
+#     theme_bw()
+#
+#   pl_patience_boxplots
+# }
+
+
+#' Plot average arrival and joined by daily time segments
+#'
+#' @param params model parameters
+#' simulator_data the dataframe from the full simulation
+#' @param segment_n number of segments per "day", defaults to 24.
+#' @importFrom magrittr %>%
+#' @export
+#'
+plot_segments <- function(params,simulator_data, segment_n = 24) {
+  range01 <- function(x) {
+    (x - min(x)) / (max(x) - min(x))
+  } # for future use
+
+  segment_breaks <- seq(0, segment_n, by = 1) #
+  lambda <- rate_factory(params)
+  simulator <- simulator_data
+  numeric_vars <- apply(simulator, 2, is.numeric) %>% names()
+  simulator %>%
+    mutate(rate = lambda(arrival)) %>%
+    mutate(time_of_day_h = time_of_day * segment_n) %>% # to work in "hours"
+    mutate(segment = cut(time_of_day_h, segment_breaks, labels = FALSE)) %>%    # to start from zero
+    group_by(day, segment) %>%
+    summarize(
+      total_joined = sum(join),
+      total_arrived = n(),
+      mean_patience_eff = sum(patience * join) / sum(join)
+    ) %>%
+    ungroup() %>%
+    group_by(segment) %>%
+    summarize(
+      joined = mean(total_joined),
+      arrived = mean(total_arrived)
+    ) %>%
+    ungroup() %>%
+    pivot_longer(cols = 2:3) %>%
+    ggplot() +
+    aes(x = segment, y = value, color = name) +
+    geom_line() +
+    ylab("events/segment")+
+    theme(
+      text = element_text(size = 20),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      panel.background = element_blank(),
+      panel.grid = element_blank()
+    )
+}
+
+
+#' Plot patience by hour
+#'
+#' @param simulator
+#' @param params
+#'
+#' @return
+#' @export
+#'
+plot_patience <- function(simulator, params){
+
+
+  simulator.joined <- simulator %>%
+    filter(join == 1) %>% as_tibble()
+
+
+  simulator.copy <- bind_rows(
+    simulator %>% mutate(customer = "all") ,
+    simulator.joined %>% mutate(customer = "joined"),
+    simulator %>% filter(join == 0) %>% mutate(customer = "balked")
+  )
+
+  # for mean/median lines
+
+  line_dat <- tibble(value =  c(1 / params$theta , qexp(.5, rate = params$theta)),
+                     parameter = factor(c("mean", "median")))
+
+
+  geom_abline(data = line_dat,mapping = aes(slope = 0,intercept = value))
+
+  simulator.copy %>%
+    mutate(hour = factor(hour)) %>%
+    ggplot(aes(
+      x = hour,
+      y = sqrt(patience),
+      fill = customer
+    )) +
+    geom_boxplot() +
+    theme(
+      text = element_text(size = 20),
+      plot.title = element_text(hjust = 0.5),
+      plot.subtitle = element_text(hjust = 0.5),
+      panel.background = element_blank(),
+      panel.grid = element_blank(),
+      axis.line.y = element_blank(),
+      axis.text.y = element_blank(),
+      axis.ticks.y = element_blank(),
+      axis.ticks.x = element_blank()
+    ) +
+    ylab(expression(sqrt(Patience))) +
+    geom_abline(data = line_dat, mapping = aes(intercept = value, slope = 0, color = parameter),lwd = 2) +
+    scale_color_manual(values = c("purple", "maroon"))
+
+
+}
+
+
+

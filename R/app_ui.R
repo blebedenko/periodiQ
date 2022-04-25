@@ -48,7 +48,7 @@ app_ui <- function(request) {
         tabItem("introduction",
                 # htmlTemplate("template.html",document_ = T)
                 mod_introduction_ui("introduction_1")),
-        ## simulation -----
+        ## simulation menu -----
         tabItem(
           "simulation",
           fluidRow(
@@ -63,49 +63,23 @@ app_ui <- function(request) {
               mod_simulation_pre_ui("simulation_pre_1")
             )
           ),
-          fluidRow(
-            box(
+          ## visualizations ----
 
-              sliderInput(
-                "from_to",
-                label = "Slide to select timeframe:",
-                min = 0,
-                max = 5,
-                step = 0.1,
-                value = c(0, 1),
-                width = '100%'
-              ),
-              title = "Queue Dynamics",
-              collapsible = TRUE,
-              collapsed = FALSE
-            ),
             box(
-              sliderInput(
-                "n_segments",
-                label = "Choose how many segments per day:",
-                min = 3,
-                max = 120,
-                value = 24L,
-                step = 1L,
-                round = T
-              ),
-              title = "Arrivals by time segments",
+              title = "Arrivals per time segment",
               collapsible = TRUE,
-              collapsed = FALSE
-            )
-          ),
-          fluidRow(
+              collapsed = FALSE,
+              width = 12,
+              mod_plot_res_ui("plot_res_segments")
+            ),
             box(
               title = "Patience",
               collapsible = TRUE,
-              collapsed = FALSE
-            ),
-            box(
-              title = "Waiting",
-              collapsible = TRUE,
-              collapsed = FALSE
+              collapsed = FALSE,
+              width = 12,
+              mod_plot_res_ui("plot_res_patience")
             )
-          )
+
         ),
         ## results ----
         tabItem(tabName = "results",
