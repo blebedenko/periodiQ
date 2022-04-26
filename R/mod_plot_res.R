@@ -18,8 +18,9 @@ mod_plot_res_ui <- function(id){
 #' plot_res Server Functions
 #' @importFrom magrittr %>%
 #' #' @noRd
-mod_plot_res_server <- function(id, res, plot_name, from_to = c(0, 1)){
+mod_plot_res_server <- function(id, res, plot_name, from_to = NULL){
   stopifnot(is.reactive(res))
+  stopifnot(is.null(from_to) || is.reactive(from_to))
   moduleServer(id,
                function(input, output, session) {
 
@@ -33,14 +34,13 @@ mod_plot_res_server <- function(id, res, plot_name, from_to = c(0, 1)){
 
                    })
                  }
-                 # if (plot_name == "arrivals") {
-                 #   output$plot <- renderPlot({
-                 #     pltArrivalsByTimeSegment(RES = RES,
-                 #
-                 #                              params = params)
-                 #   })
-                 #
-                 # }
+                 if (plot_name == "hourly") {
+                   output$plot <- renderPlot({
+                     plot_hourly_queue_arrivals(simulator_data = res()[["simulator"]],
+                                              params = res()[["params"]])
+                   })
+
+                 }
                  if (plot_name == "patience") {
                    output$plot <-  renderPlot({
                      params <- res()[["params"]]
@@ -48,10 +48,15 @@ mod_plot_res_server <- function(id, res, plot_name, from_to = c(0, 1)){
                      plot_patience(simulator_data, params)
                    })
                  }
-                 # if (plot_name == "dynamics") {
-                 #   hist(RES$AWX$W, main = "Waiting times of joining customers")
-                 #
-                 # }
+                 if (plot_name == "interval") {
+                   output$plot <- renderPlot({
+                     params <- res()[["params"]]
+                     simulator_data <- res()[["simulator"]]
+                     plot_interval(simulator_data=simulator_data,params=params,from_to = from_to())
+
+                   })
+
+                 }
 
                })
 

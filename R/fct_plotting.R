@@ -1,6 +1,6 @@
 #' Plot the rate function
 #'
-#' @param params  names list of parameters (output of 'listParams()').
+#' @param params  names list of quantiles (output of 'listParams()').
 #' @param n_cycles of cycles to plot (defaults to 5)
 #' @importFrom magrittr %>%
 #' @export
@@ -20,77 +20,11 @@ pltRate <- function(params, n_cycles = 2) {
     lwd = 2,
     xlab = "time",
     ylab = expression(lambda(t)),
-    main =  bquote("Parameters:" ~ gamma == .(gamma) ~ "and" ~ lambda[0] == .(lambda_0))
+    main =  bquote("quantiles:" ~ gamma == .(gamma) ~ "and" ~ lambda[0] == .(lambda_0))
   )
 }
 
 
-#' Plot the queue dynamics in a specified time interval
-#'
-#' @param from_to vector of start and stop of the time interval. Defaults to c(1,2).
-#' @param RES full simulations results list
-#' @param params scenario parameters
-#' @importFrom magrittr %>%
-#' @return plot only
-#' @export
-#'
-#' @examples
-#' R <- exampleDataRES()
-#' pltQueueInterval(RES = R, params = exampleParams())
-
-pltIntervalDynamics <- function(RES, from_to = c(0, 1), params) {
-  from <-  from_to[1]
-  to <- from_to[2]
-  lambda <- rate_factory(params)
-  dat <- RES$simulator
-  # partial data for the purpose of this plot:
-
-  pdat <- dat %>%
-    mutate(cum_arrival = cumsum(arrival)) %>%
-    mutate(rate = lambda(cum_arrival)) %>%
-    filter(cum_arrival >= from, cum_arrival <= to)
-
-
-
-  p1 <-
-    lattice::xyplot(
-      queue ~ cum_arrival,
-      type = "s",
-      lwd = 2,
-      data = pdat,
-      xlab = "time",
-      col = "blue"
-    )
-
-  p2 <-
-    lattice::xyplot(
-      rate ~ cum_arrival,
-      data = pdat,
-      type = "l",
-      col = "purple",
-      lwd = 3,
-      lty = 3,
-      key = list(
-        #corner = c(0,0),
-        # space = c("top"),
-        title = "Arrival rate and queue length",
-        lines =
-          list(
-            col = c("purple", "blue"),
-            lty = c(3, 1),
-            lwd = c(3, 2)
-          ),
-        text =
-          list(c(expression(lambda(
-            t
-          )), expression(Q(
-            t
-          ))))
-      )
-    )
-
-  latticeExtra::doubleYScale(p1, p2, add.ylab2 = T)
-}
 
 
 
@@ -98,7 +32,7 @@ pltIntervalDynamics <- function(RES, from_to = c(0, 1), params) {
 #'
 #' @param segments number of segments to divide one cycle into. Defaults to 24 (hours per day).
 #' @param RES full simulations results list
-#' @param params scenario parameters
+#' @param params scenario quantiles
 #' @importFrom magrittr %>%
 #' @export
 pltArrivalsByTimeSegment <- function(segments = 24, RES, params) {
@@ -174,7 +108,7 @@ pltArrivalsByTimeSegment <- function(segments = 24, RES, params) {
 
 #' Plot average arrival and joined by daily time segments
 #'
-#' @param params model parameters
+#' @param params model quantiles
 #' simulator_data the dataframe from the full simulation
 #' @param segment_n number of segments per "day", defaults to 24.
 #' @importFrom magrittr %>%
@@ -192,7 +126,8 @@ plot_segments <- function(params,simulator_data, segment_n = 24) {
   simulator %>%
     mutate(rate = lambda(arrival)) %>%
     mutate(time_of_day_h = time_of_day * segment_n) %>% # to work in "hours"
-    mutate(segment = cut(time_of_day_h, segment_breaks, labels = FALSE)) %>%    # to start from zero
+    mutate(segment = cut(time_of_day_h, segment_breaks, labels = FALSE)) %>%
+    mutate(segment = as.numeric(segment) - 1) %>% # to start from zero
     group_by(day, segment) %>%
     summarize(
       total_joined = sum(join),
@@ -207,8 +142,9 @@ plot_segments <- function(params,simulator_data, segment_n = 24) {
     ) %>%
     ungroup() %>%
     pivot_longer(cols = 2:3) %>%
+    set_names(c("segment","process","average")) %>%
     ggplot() +
-    aes(x = segment, y = value, color = name) +
+    aes(x = segment, y = average, color = process) +
     geom_line() +
     ylab("events/segment")+
     theme(
@@ -245,10 +181,9 @@ plot_patience <- function(simulator, params){
   # for mean/median lines
 
   line_dat <- tibble(value =  c(1 / params$theta , qexp(.5, rate = params$theta)),
-                     parameter = factor(c("mean", "median")))
+                     quantile = factor(c("mean", "median")))
 
 
-  geom_abline(data = line_dat,mapping = aes(slope = 0,intercept = value))
 
   simulator.copy %>%
     mutate(hour = factor(hour)) %>%
@@ -270,11 +205,125 @@ plot_patience <- function(simulator, params){
       axis.ticks.x = element_blank()
     ) +
     ylab(expression(sqrt(Patience))) +
-    geom_abline(data = line_dat, mapping = aes(intercept = value, slope = 0, color = parameter),lwd = 2) +
-    scale_color_manual(values = c("purple", "maroon"))
+    geom_abline(data = line_dat, mapping = aes(intercept = value, slope = 0, color = quantile),lwd = 1.5, lty = 2) +
+    scale_color_manual(values = c("purple", "deepskyblue"))
 
 
 }
 
 
 
+#' Plot the queue dynamics in a specified time interval
+#'
+#' @param simulator_data full simulations results list
+#' @param params scenario quantiles
+#' @param from_to vector of start and stop of the time interval. Defaults to c(1,2).
+#' @importFrom magrittr %>%
+#' @return plot only
+#' @export
+#'
+#' @examples
+#' R <- exampleDataRES()
+#' pltQueueInterval(RES = R, params = exampleParams())
+
+plot_interval <- function(simulator_data, params, from_to = c(0, 1)) {
+  from <-  from_to[1]
+  to <- from_to[2]
+  lambda <- rate_factory(params)
+
+  # partial data for the purpose of this plot:
+
+  pdat <- simulator_data %>%
+    mutate(arrival_time = cumsum(arrival)) %>%
+    mutate(rate = lambda(arrival_time)) %>%
+    filter(arrival_time >= from, arrival_time<= to)
+  # separate data for the rate so the curve always comes out smooth
+  rdat <- tibble(time = seq(from, to, length.out = 1000),
+                 rate = lambda(time))
+
+
+
+  p1 <-
+    lattice::xyplot(
+      queue ~ arrival_time,
+      type = "s",
+      lwd = 2,
+      data = pdat,
+      xlab = "time",
+      col = "blue"
+    )
+
+  p2 <-
+    lattice::xyplot(
+      rate ~ time,
+      data = rdat,
+      type = "l",
+      col = "purple",
+      lwd = 3,
+      lty = 3,
+      key = list(
+        #corner = c(0,0),
+        # space = c("top"),
+        title = "Arrival rate and queue length",
+        lines =
+          list(
+            col = c("purple", "blue"),
+            lty = c(3, 1),
+            lwd = c(3, 2)
+          ),
+        text =
+          list(c(expression(lambda(
+            t
+          )), expression(Q(
+            t
+          ))))
+      )
+    )
+
+  latticeExtra::doubleYScale(p1, p2, add.ylab2 = T)
+}
+
+
+plot_hourly_queue_arrivals <- function(simulator_data, params){
+  simulator_data %>%
+    group_by(day,hour) %>%
+    summarize(queue = mean(queue),
+              joined= sum(join)) %>%
+    group_by(hour) %>%
+    summarize(queue = mean(queue),
+              joined = mean(joined)) -> dat_queue_joined
+
+  p_queue <-
+    lattice::xyplot(
+      queue ~ hour ,
+      type = "h",
+      lwd = 2,
+      data = dat_queue_joined %>% mutate(hour = hour + .5),
+      xlab = "time",
+      col = "blue"
+    )
+
+  p_join <-
+    lattice::xyplot(
+      joined ~ hour,
+      data = dat_queue_joined,
+      type = "s",
+      col = "purple",
+      lwd = 3,
+      lty = 3,
+      key = list(
+        #corner = c(0,0),
+        # space = c("top"),
+        title = "Queue length and hourly arrivals",
+        lines =
+          list(
+            col = c("purple", "blue"),
+            lty = c(3, 1),
+            lwd = c(3, 2)
+          ),
+        text =
+          list(lab = c("hourly queue length", "customers joining"))
+      )
+    )
+  latticeExtra::doubleYScale(p_queue,p_join)
+}

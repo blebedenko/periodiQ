@@ -1,107 +1,11 @@
-
-
-# Sumulation - basically done
+---
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
 
 
 ```{r}
-#'  Make Parameter list
-#'
-#' @param gamma periodical component of the rate function.
-#' @param lambda_0  constant component of the rate function.
-#' @param theta  exponential patience rate parameter.
-#' @param eta shape parameter of the job size.
-#' @param mu rate parameter of the job size.
-#' @param s number of servers
-#' @param model (default to "cosine_exp") names of the model to use
-#' @return named list with all the relevant parameters.
-#' @importFrom magrittr %>%
-#' @export
-#'
-#' @examples
-#' listParams(gamma=10,lambda_0=20,theta=2.5, eta = 1, mu = 1 , s = 3)
-param_list <-
-  function(gamma, lambda_0, theta, eta, mu, s,  model = "cosine_exp") {
-    par_list <-
-      list(
-        gamma = gamma,
-        lambda_0 = lambda_0,
-        theta = theta,
-        eta = eta,
-        mu = mu,
-        s = s
-      )
-    return(par_list)
-  }
-
-
-#' Rate function factory
-#'
-#' @param params  named list of parameters (output of 'listParams()').
-#'
-#' @return A function with argument t that computes the arrival rate.
-#' @export
-#'
-#' @examples
-#' params <- listParams(gamma=10,lambda_0=20,theta=2.5, eta = 1, mu = 1 , s = 3)
-#' rate <- rate_factory(params)
-#' rate(t = runif(3))
-rate_factory <- function(params) {
-  gamma <- params$gamma
-  lambda_0 <- params$lambda_0
-  return(function(t)
-    lambda_0 + (gamma / 2) * (1 + cos(2 * pi * t)))
-}
-
-#' Next Arrival of inhomogeneous Poisson process
-#'
-#' Generates  next arrival time (not inter-arrival!) of a nonhomogeneous Poisson process.
-#' @param current_time the time on the clock.
-#' @param params  named list of parameters (output of 'listParams()').
-#' @param model (currently inactive, do not use)
-#' @return time of the next arrival.
-#'
-#' @export
-#'
-#' @examples
-#' params <- listParams(gamma=10,lambda_0=20,theta=2.5, eta = 1, mu = 1 , s = 3)
-#' next_arrival(1.2,params = params)
-
-next_arrival <- function(current_time, params, model = "cosine") {
-  gamma <- params$gamma
-  lambda_0 <- params$lambda_0
-  lambda_sup <- gamma + lambda_0 # highest rate in the cosine model
-  rate <- rate_factory(params)
-  arrived <- FALSE
-  while (!arrived) {
-    u1 <- stats::runif(1)
-    current_time <-
-      current_time - (1 / lambda_sup) * log(u1) # generate next arrival from Pois(sup_lambda)
-    u2 <- stats::runif(1)
-    arrived <- u2 <= rate(current_time) / lambda_sup
-  }
-  return(current_time)
-}
-
-#' Generate arrival times
-#'
-#' @param m number of samples to generate (default = 10000)
-#' @param params parameters
-#' @param model (currently inactive, do not use)
-#' @return A vector of arrival times
-#' @export
-#' @importFrom magrittr %>%
-#' @examples
-#' Ar <- make_arrivals(params = exampleParams())
-#' hist(Ar - trunc(Ar)) # note the cosine structure
-make_arrivals <- function(m = 1000, params, model = "cosine"){
-  arrival_times <- numeric(length = m)
-  arrival_times[1] <- next_arrival(current_time = 0,params = params)
-  for (i in 2:m){
-    arrival_times[i] <- next_arrival(current_time = arrival_times[i - 1],params = params)
-  }
-  return(arrival_times)
-}
-
 
 #' Customer's job size and patience
 #' Provides with a realization of Y~Exp(theta) and B~Gamma(eta,mu)
@@ -156,23 +60,29 @@ VW <- function(Res.service, s) {
 }
 
 
-#' full simulation function
+```
+
+
+### FS 2
+
+```{r}
+#' full simulation function - efficient pregeneration
 #' @description The full-observations simulation function.
 #' @param n required number of effective arrivals
 #' @param params a list of the model parameters
 #' @return The return value, if any, from executing the function.
 #' @importFrom magrittr %>%
 #' @noRd
-full_simulation <- function(n, params, m = 1e6){
+full_simulation2 <- function(n, params, m = 1e6){
   gamma <- params$gamma
   lambda_0 <- params$lambda_0
   theta <- params$theta
   eta <- params$eta
   mu <- params$mu
   s <- params$s
-  message("pre-generating arrival times...")
+  message("pre-generating ", m ," arrival times...")
   T_tilde <- make_arrivals(m = m,params = params) # arrival times of ALL customers
-  message("Done! Now the queue...")
+  message("Done! Now starting the queue...")
 
   T_inter <- diff(T_tilde) # inter-arrival times
 
@@ -209,6 +119,11 @@ full_simulation <- function(n, params, m = 1e6){
   # for (arr in 1:(length(T_tilde) - 1)){
   arr <- 1
   while (effective_counter < n + 1) {
+    if ((arr %% m) == 0){ # finished arrival times vec, make more
+      message("arrival times reached last, generating ",m, " more...")
+      T_tilde <- c(T_tilde,make_arrivals(m = m,params = params, start_time = T_tilde[arr]))
+      message("Done. Back to the queue...")
+    }
 
 
 
@@ -216,6 +131,7 @@ full_simulation <- function(n, params, m = 1e6){
     B <- customer$jobsize
     Y <- customer$patience
     total_arrived <- total_arrived + 1
+    
     if (virtual.wait <= Y){
 
       effective_counter <- effective_counter + 1 #Count observation
@@ -245,7 +161,7 @@ full_simulation <- function(n, params, m = 1e6){
     Bj[arr] <- B # jobsize of customer
 
 
-    A <- T_inter[arr]
+    A <- diff(T_tilde[c(arr,arr+1)])
     klok <- klok + A
     time.last <-
       time.last + A #Add arrival time to effective arrival time
@@ -322,11 +238,14 @@ full_simulation <- function(n, params, m = 1e6){
         trans.last + A #Update timer since least transition with new arrival
     }
     virtual.wait <- VW(Res.service, s) #Update virtual waiting time
-
+    
     arr <- arr + 1 # next arrival time
+    
     # progress bar
     if (effective_counter %% 1000 == 0)
       cat("* ")
+    
+
 
   }
 
@@ -395,6 +314,7 @@ full_simulation <- function(n, params, m = 1e6){
 }
 ```
 
+# sim
 
 # Plotting
 
@@ -428,52 +348,75 @@ pltRate <- function(params, n_cycles = 2) {
 ```
 
 
+
+# Test
+
 ```{r}
-#' Plot the queue dynamics in a specified time interval
-#'
-#' @param from_to vector of start and stop of the time interval. Defaults to c(1,2).
-#' @param simulator full simulations results data frame
-#' @param params scenario parameters
-#' @importFrom magrittr %>%
-#' @return plot only
-#' @export
-#'
+undebug(full_simulation2)
+a <- Sys.time()
+res <- full_simulation(n = 500,params = param_list(gamma = 100,lambda_0 = 50,theta = 1,eta = 1,mu = 1,s = 25),m = 1e5)
+b <- Sys.time()
 
-plot_interval <- function(simulator, params, from_to = c(0, 1)) {
-  from <-  from_to[1]
-  to <- from_to[2]
-  lambda <- rate_factory(params)
-  # partial data for the purpose of this plot:
-
-  pdat <- simulator %>%
-    mutate(cum_arrival = cumsum(arrival)) %>%
-    mutate(rate = lambda(cum_arrival)) %>%
-    filter(cum_arrival >= from, cum_arrival <= to)
+```
 
 
 
-  p1 <-
+```{r}
+
+plot_segments(params = res$params,simulator_data = res$simulator,segment_n = 24)
+plot_patience(res$simulator,res$params)
+```
+
+```{r}
+dat <- res$simulator
+dat %>% 
+  group_by(hour) %>% 
+  summarise(
+    Waiting = mean(wait), 
+    Customers = mean(queue)) %>% 
+  pivot_longer(cols = c("Waiting","Customers"),names_to = "average") -> dat.l
+
+
+plot_interval(res$simulator,params = res$params,from_to = c(0,2))
+```
+
+
+
+```{r}
+simulator_data <- res$simulator
+params <- res$params
+
+plot
+simulator_data %>% 
+  group_by(day,hour) %>% 
+  summarize(queue = mean(queue) - params$s,
+            joined= sum(join)) %>% 
+  group_by(hour) %>% 
+  summarize(queue = mean(queue),
+            joined = mean(joined)) -> dat_queue_joined
+
+p_queue <-
     lattice::xyplot(
-      queue ~ cum_arrival,
-      type = "s",
+      queue ~ hour ,
+      type = "h",
       lwd = 2,
-      data = pdat,
+      data = dat_queue_joined %>% mutate(hour = hour + .5),
       xlab = "time",
       col = "blue"
     )
 
-  p2 <-
+  p_join <-
     lattice::xyplot(
-      rate ~ cum_arrival,
-      data = pdat,
-      type = "l",
+      joined ~ hour,
+      data = dat_queue_joined,
+      type = "s",
       col = "purple",
       lwd = 3,
       lty = 3,
       key = list(
         #corner = c(0,0),
         # space = c("top"),
-        title = "Arrival rate and queue length",
+        title = "Queue length and hourly arrivals",
         lines =
           list(
             col = c("purple", "blue"),
@@ -481,166 +424,9 @@ plot_interval <- function(simulator, params, from_to = c(0, 1)) {
             lwd = c(3, 2)
           ),
         text =
-          list(c(expression(lambda(
-            t
-          )), expression(Q(
-            t
-          ))))
+          list(lab = c("hourly queue length", "customers joining"))
       )
     )
-
-  latticeExtra::doubleYScale(p1, p2, add.ylab2 = T)
-}
-```
-
-```{r}
-plot_interval(res$simulator,params = res$params, from_to = c(1.5,2.9))
-```
-
-
-
-
-```{r}
-#' Plot the queue dynamics in a specified time interval
-#'
-#' @param segments number of segments to divide one cycle into. Defaults to 24 (hours per day).
-#' @param RES full simulations results list
-#' @param params scenario parameters
-#' @importFrom magrittr %>%
-#' @export
-pltArrivalsByTimeSegment <- function(segments = 24, RES, params) {
-  if (length(segments) != 1 || segments <= 0)
-    stop ("number of segments has to be a positive integer")
-  A_tilde <- cumsum(RES$Aj)
-  time_of_day <- A_tilde - trunc(A_tilde)
-  breaks <- seq(0, 1, by = 1 / segments)
-  arrivals_segmented <- cut(time_of_day, breaks)
-  levels(arrivals_segmented) <- 1:segments
-  dat <-
-    data.frame(
-      time = time_of_day,
-      queue = RES$Qj,
-      waiting = pmax(RES$Qj - params$s, 0)
-    )
-  dat$segment <- cut(dat$time, breaks, labels = 1:segments)
-  dat <- dat %>% group_by(segment) %>% summarise(L = mean(queue),
-                                                 Lw = mean(waiting),
-                                                 arrivals = n())
-  p1 <-
-    lattice::xyplot(
-      arrivals ~ segment,
-      data = dat,
-      type = "h",
-      lwd = 3,
-      lty = 3,
-      col = 1
-    )
-  p2 <-
-    lattice::xyplot(
-      dat$Lw ~ as.numeric(segment) - 0.5,
-      data = dat,
-      type = "h",
-      lty = 1,
-      ylab = "No. Waiting",
-      col = 2,
-      lwd = 4,
-      key = list(
-        lines = list(col = 1:2 , lwd = 3:4),
-        text = list(lab = c(
-          'Arrivals/segment', 'No. waiting / segment'
-        )),
-        title = "Arrivals and queue length"
-      )
-    )
-  latticeExtra::doubleYScale(p1, p2, add.ylab2 = T, under =)
-}
-
-
-
-# pltPatienceByJoin <- function(RES) {
-#   dat <- RES$simulator
-#   dat.j <- dat %>%
-#     filter(join == 1) %>% as_tibble()
-#   dat.ext <- dplyr::bind_rows(
-#     dat %>% mutate(`arrival type` = "all") ,
-#     dat.j %>% mutate(`arrival type` = "joined"),
-#     dat %>% filter(join == 0) %>% mutate(`arrival type` = "balked")
-#   )
-#
-#   # patience boxplots
-#   pl_patience_boxplots <-
-#     dat.ext %>%
-#     ggplot() +
-#     aes(x = sqrt(patience), fill = `arrival type`) +
-#     geom_boxplot(notch = TRUE) +
-#     theme_bw()
-#
-#   pl_patience_boxplots
-# }
-
-
-#' Plot average arrival and joined by daily time segments
-#'
-#' @param params model parameters
-#' simulator_data the dataframe from the full simulation
-#' @param segment_n number of segments per "day", defaults to 24.
-#' @importFrom magrittr %>%
-#' @export
-#'
-pltSegments <- function(params,simulator_data, segment_n = 24) {
-  range01 <- function(x) {
-    (x - min(x)) / (max(x) - min(x))
-  } # for future use
-
-  segment_breaks <- seq(0, segment_n, by = 1) #
-  lambda <- rate_factory(params)
-  simulator <- simulator_data
-  numeric_vars <- apply(simulator, 2, is.numeric) %>% names()
-  simulator %>%
-    mutate(rate = lambda(arrival)) %>%
-    mutate(time_of_day_h = time_of_day * segment_n) %>% # to work in "hours"
-    mutate(segment = cut(time_of_day_h, segment_breaks, labels = FALSE)) %>%    # to start from zero
-    group_by(day, segment) %>%
-    summarize(
-      total_joined = sum(join),
-      total_arrived = n(),
-      mean_patience_eff = sum(patience * join) / sum(join)
-    ) %>%
-    ungroup() %>%
-    group_by(segment) %>%
-    summarize(
-      segment_joined = mean(total_joined),
-      segment_arrived = mean(total_arrived),
-      segment_p = mean(total_joined / total_arrived)
-    ) %>%
-    ungroup() %>%
-    pivot_longer(cols = 2:4) %>%
-    ggplot() +
-    aes(x = segment, y = value, color = name) +
-    geom_line()
-}
-
-
-#' Pipe
-#'
-#' Put description here
-#'
-#' @importFrom magrittr %>%
-#' @name %>%
-#' @rdname pipe
-#' @export
-#' @param lhs,rhs specify what lhs and rhs are
-#' @examples
-#' # some examples if you want to highlight the usage in the package
-NULL
-
-
-```
-
-# Test
-
-```{r}
-res <- full_simulation(n = 1000,params = param_list(gamma = 100,lambda_0 = 50,theta = 1,eta = 1,mu = 1,s = 50),m = 1e4)
-plot_patience(simulator = res$simulator,params = res$params)
+  latticeExtra::doubleYScale(p_queue,p_join)
 ```
 

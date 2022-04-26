@@ -69,16 +69,33 @@ app_ui <- function(request) {
               title = "Arrivals per time segment",
               collapsible = TRUE,
               collapsed = FALSE,
-              width = 12,
+              #width = 6,
               mod_plot_res_ui("plot_res_segments")
             ),
             box(
               title = "Patience",
               collapsible = TRUE,
               collapsed = FALSE,
-              width = 12,
+              #width = 6,
               mod_plot_res_ui("plot_res_patience")
-            )
+            ),
+          box(
+            title = "Queue during time interval",
+            collapsible = TRUE,
+            collapsed = FALSE,
+            #width = 6,
+            mod_plot_res_ui("plot_res_interval"),
+            uiOutput("res_interval_from_to_ui")
+          ),
+          box(
+            title = "Queue length & averages arrivals",
+            collapsible = TRUE,
+            collapsed = FALSE,
+            #width = 6,
+            mod_plot_res_ui("plot_res_hourly")
+          )
+
+
 
         ),
         ## results ----

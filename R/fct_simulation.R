@@ -80,6 +80,7 @@ next_arrival <- function(current_time, params, model = "cosine") {
 #'
 #' @param m number of samples to generate (default = 10000)
 #' @param params parameters
+#' @start_time the clock time at which observation of the process starts
 #' @param model (currently inactive, do not use)
 #' @return A vector of arrival times
 #' @export
@@ -87,9 +88,9 @@ next_arrival <- function(current_time, params, model = "cosine") {
 #' @examples
 #' Ar <- make_arrivals(params = exampleParams())
 #' hist(Ar - trunc(Ar)) # note the cosine structure
-make_arrivals <- function(m = 1000, params, model = "cosine"){
+make_arrivals <- function(m = 1000, params, start_time = 0, model = "cosine"){
   arrival_times <- numeric(length = m)
-  arrival_times[1] <- next_arrival(current_time = 0,params = params)
+  arrival_times[1] <- next_arrival(current_time = start_time, params = params)
   for (i in 2:m){
     arrival_times[i] <- next_arrival(current_time = arrival_times[i - 1],params = params)
   }
