@@ -221,10 +221,6 @@ plot_patience <- function(simulator, params){
 #' @importFrom magrittr %>%
 #' @return plot only
 #' @export
-#'
-#' @examples
-#' R <- exampleDataRES()
-#' pltQueueInterval(RES = R, params = exampleParams())
 
 plot_interval <- function(simulator_data, params, from_to = c(0, 1)) {
   from <-  from_to[1]
@@ -284,8 +280,16 @@ plot_interval <- function(simulator_data, params, from_to = c(0, 1)) {
 }
 
 
+#' Barplot of hourly averages - queue and arrivals
+#'
+#' @param simulator_data
+#' @param params
+#'
+#' @return
+#' @export
 plot_hourly_queue_arrivals <- function(simulator_data, params){
   simulator_data %>%
+    filter(day > 0) %>% # remove the first day
     group_by(day,hour) %>%
     summarize(queue = mean(queue),
               joined= sum(join)) %>%
@@ -317,7 +321,7 @@ plot_hourly_queue_arrivals <- function(simulator_data, params){
         title = "Queue length and hourly arrivals",
         lines =
           list(
-            col = c("purple", "blue"),
+            col = c("blue", "purple"),
             lty = c(3, 1),
             lwd = c(3, 2)
           ),
@@ -327,3 +331,73 @@ plot_hourly_queue_arrivals <- function(simulator_data, params){
     )
   latticeExtra::doubleYScale(p_queue,p_join)
 }
+
+
+
+#' Breakdown of hourly states
+#'
+#' @param simulator_data
+#' @param params
+#'
+#' @return
+#' @export
+plot_hourly_join_prob_queue <- function(simulator_data, params){
+  lambda <- rate_factory(params)
+  simulator_data %>%
+    filter(day > 0) %>% # remove the first day
+    group_by(day,hour) %>%
+    summarize(prob_join = mean(join),
+              customers = mean(queue)) %>%
+    mutate(rate = lambda(hour/24))   -> dat_scatter_queue_joined
+
+
+
+   StatMeanLine <- ggproto("StatMeanLine", Stat,
+                          compute_group = function(data, scales) {
+                            transform(data, yintercept=mean(y))
+                          },
+                          required_aes = c("x", "y")
+  )
+
+  stat_mean_line <- function(mapping = NULL, data = NULL, geom = "hline",
+                             position = "identity", na.rm = FALSE, show.legend = NA,
+                             inherit.aes = TRUE, ...) {
+    layer(
+      stat = StatMeanLine, data = data, mapping = mapping, geom = geom,
+      position = position, show.legend = show.legend, inherit.aes = inherit.aes,
+      params = list(na.rm = na.rm, ...)
+    )
+  }
+
+  StatMeanLineV <- ggproto("StatMeanLineV", Stat,
+                          compute_group = function(data, scales) {
+                            transform(data, xintercept=mean(x))
+                          },
+                          required_aes = c("x", "y")
+  )
+
+  stat_mean_line_v <- function(mapping = NULL, data = NULL, geom = "vline",
+                             position = "identity", na.rm = FALSE, show.legend = NA,
+                             inherit.aes = TRUE, ...) {
+    layer(
+      stat = StatMeanLineV, data = data, mapping = mapping, geom = geom,
+      position = position, show.legend = show.legend, inherit.aes = inherit.aes,
+      params = list(na.rm = na.rm, ...)
+    )
+  }
+
+  ggplot(dat_scatter_queue_joined) +
+    aes(x = customers, y = prob_join) +
+    geom_point(aes(color = rate, alpha = day))+
+    stat_mean_line(color = "purple") +
+    stat_mean_line_v(color = "darkgreen") +
+    facet_wrap(~hour,nrow = 6,ncol = 4) +
+    xlab("customers in system") +
+    ylab("probability of joining") +
+    ggplot2::scale_color_distiller(palette = "Spectral") +
+    ylim(c(0,1))
+
+}
+
+
+

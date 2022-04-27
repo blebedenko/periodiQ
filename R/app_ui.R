@@ -25,8 +25,12 @@ app_ui <- function(request) {
             tabName = "introduction",
             icon = icon("graduation-cap")
           ),
-          menuItem("Simulation", tabName = "simulation",
-                   icon = icon("dice")),
+          menuItem("Simulation",startExpanded = TRUE,
+                   icon = icon("dice"),
+                   menuSubItem(tabName = "simulation_custom",text = "Custom",icon = icon("wrench", lib = "glyphicon")),
+                   menuSubItem(tabName = "simulation_pregenerated",text = "Pre-generated",icon = icon("paperclip",lib = "glyphicon"))
+
+                   ),
           menuItem(
             "Results",
             tabName = "results",
@@ -49,64 +53,98 @@ app_ui <- function(request) {
                 # htmlTemplate("template.html",document_ = T)
                 mod_introduction_ui("introduction_1")),
         ## simulation menu -----
-        tabItem(
-          "simulation",
-          fluidRow(
-            box(
-              width = 6,
-              collapsible = T,
-              mod_simulation_custom_ui("simulation_custom_1")
-            ),
-            box(
-              width = 6,
-              collapsible = T,
-              mod_simulation_pre_ui("simulation_pre_1")
-            )
-          ),
-          ## visualizations ----
+        tabItem( "simulation_custom",
 
-            box(
-              title = "Arrivals per time segment",
-              collapsible = TRUE,
-              collapsed = FALSE,
-              #width = 6,
-              mod_plot_res_ui("plot_res_segments")
-            ),
-            box(
-              title = "Patience",
-              collapsible = TRUE,
-              collapsed = FALSE,
-              #width = 6,
-              mod_plot_res_ui("plot_res_patience")
-            ),
-          box(
-            title = "Queue during time interval",
-            collapsible = TRUE,
-            collapsed = FALSE,
-            #width = 6,
-            mod_plot_res_ui("plot_res_interval"),
-            uiOutput("res_interval_from_to_ui")
-          ),
-          box(
-            title = "Queue length & averages arrivals",
-            collapsible = TRUE,
-            collapsed = FALSE,
-            #width = 6,
-            mod_plot_res_ui("plot_res_hourly")
-          )
+                 shinydashboardPlus::box(title = "Instructions",width = 12,collapsible = TRUE,
+                   mod_simulation_custom_ui("simulation_custom_1")),
+
+          tabBox(width = 12,
+                 tabPanel(title = "Arrivals per time segment",
+                          mod_plot_res_ui("plot_res_segments")),
+                 tabPanel(title = "Patience",mod_plot_res_ui("plot_res_patience")),
+
+                 tabPanel(title = "Queue during time interval",
+                          mod_plot_res_ui("plot_res_interval")),
+
+                 tabPanel(title = "Queue  & average arrivals",
+                          mod_plot_res_ui("plot_res_hourly")),
+
+                 tabPanel(title = "Hourly breakdown of the queue",
+                          mod_plot_res_ui("plot_res_breakdown"))
+          )),
+
+          # ## visualizations ----
+          #
+          #   box(
+          #     title = "Arrivals per time segment",
+          #     collapsible = TRUE,
+          #     collapsed = FALSE,
+          #     #width = 6,
+          #     mod_plot_res_ui("plot_res_segments")
+          #   ),
+          #   box(
+          #     title = "Patience",
+          #     collapsible = TRUE,
+          #     collapsed = FALSE,
+          #     #width = 6,
+          #     mod_plot_res_ui("plot_res_patience")
+          #   ),
+          # box(
+          #   title = "Queue during time interval",
+          #   collapsible = TRUE,
+          #   collapsed = FALSE,
+          #   #width = 6,
+          #   mod_plot_res_ui("plot_res_interval"),
+          #   uiOutput("res_interval_from_to_ui")
+          # ),
+          # box(
+          #   title = "Queue length & averages arrivals",
+          #   collapsible = TRUE,
+          #   collapsed = FALSE,
+          #   #width = 6,
+          #   mod_plot_res_ui("plot_res_hourly")
+          # ),
+          # box(
+          #   title = "Hourly breakdown of the queue",
+          #   collapsible = TRUE,
+          #   collapsed = FALSE,
+          #   #width = 6,
+          #   mod_plot_res_ui("plot_res_breakdown")
+          # ),
+
+          ## plot in tab box
+
+          # ),
+        ## pre-generated ---
+        tabItem(tabName = "simulation_pregenerated",
+                mod_simulation_pregenerated_ui("simulation_pregenerated_1"),
+                tabBox(width = 12,
+                       tabPanel(title = "Arrivals per time segment",
+                                mod_plot_res_ui("plot_pre_segments")),
+                       tabPanel(title = "Patience",
+                                mod_plot_res_ui("plot_pre_patience")),
+
+                       tabPanel(title = "Queue during time interval",
+                                mod_plot_res_ui("plot_pre_interval")),
+
+                       tabPanel(title = "Queue  & average arrivals",
+                                mod_plot_res_ui("plot_pre_hourly")),
+
+                       tabPanel(title = "Hourly breakdown of the queue",
+                                mod_plot_res_ui("plot_pre_breakdown"))
+                )),
 
 
-
-        ),
         ## results ----
         tabItem(tabName = "results",
                 h2("theoretical and empirical results")),
         ## conclusions ----
         tabItem(tabName = "conclusions",
                 h2("summary and conclusions here"))
-      ))
+      )
+
+  ))
     )
-  )
 }
 
 #' Add external Resources to the Application

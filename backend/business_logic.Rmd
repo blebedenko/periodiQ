@@ -73,7 +73,7 @@ VW <- function(Res.service, s) {
 #' @return The return value, if any, from executing the function.
 #' @importFrom magrittr %>%
 #' @noRd
-full_simulation2 <- function(n, params, m = 1e6){
+full_simulation2 <- function(n, params, m = 10 * n){
   gamma <- params$gamma
   lambda_0 <- params$lambda_0
   theta <- params$theta
@@ -352,13 +352,28 @@ pltRate <- function(params, n_cycles = 2) {
 # Test
 
 ```{r}
-undebug(full_simulation2)
 a <- Sys.time()
-res <- full_simulation(n = 500,params = param_list(gamma = 100,lambda_0 = 50,theta = 1,eta = 1,mu = 1,s = 25),m = 1e5)
+res <-
+  simulate_queue(
+    params = param_list(
+      gamma = 100,
+      lambda_0 = 50,
+      theta = 1,
+      eta = 1,
+      mu = 1,
+      s = 85,
+      sample_size = 1e4
+    ),
+    patience_model = "d",
+    m = 1e5
+  )
 b <- Sys.time()
-
+b - a
 ```
 
+```{r}
+res <- simulate_queue(params = scenario_params(),patience_model = "d")
+```
 
 
 ```{r}
@@ -427,6 +442,91 @@ p_queue <-
           list(lab = c("hourly queue length", "customers joining"))
       )
     )
-  latticeExtra::doubleYScale(p_queue,p_join)
+latticeExtra::doubleYScale(p_queue,p_join)
+
+  
+  
+```
+
+
+```{r}
+plot_hourly_join_prob_queue(res$simulator,res$params)
+```
+
+
+
+```{r}
+model_info_html <- function(params, digits = 3) {
+  eta <- params$eta
+  s <- params$s
+  mu <- params$mu
+  gamma <- params$gamma
+  lambda_0 <- params$lambda_0
+  rates <- lambda_0 + c(0, gamma / 2, gamma)
+  names(rates) <- c("min", "ave", "max")
+  rhos <- rates * eta / (s * mu)
+  # round for nicer output:
+  rhos <- round(rhos, digits = digits)
+  sentence1 <-
+    paste0("The average rate is ",
+           rates[2],
+           " and the range is ",
+           rates[1],
+           " - ",
+           rates[3],
+           ".")
+  sentence2 <-
+    paste0("Thus the offered load is on average ",
+           rhos[2],
+           " and ranges ",
+           rhos[1],
+           " - ",
+           rhos[3],
+           ".")
+  rho_text <- paste(sentence1, sentence2, sep = "\n")
+
+
+  params_round <- sapply(params, round, digits = digits)
+  human_text <- with(params,  {
+    sentence1 <-
+      paste0(
+        "The customers' patience is exponentially distributed with parameter: ",
+        theta,
+        " (mean = ",
+        round(1 / theta, digits  = 3),
+        ")"
+      )
+
+    jobsize_distr <- paste0("Gamma(", eta, ", ", mu, ")")
+    sentence2 <-
+      paste0(
+        "The job sizes are independent of the patience and distributed ",
+        jobsize_distr,
+        " (mean = ",
+        round(eta / mu, digits = digits),
+        ")"
+      ) # average jobsize
+
+    sentence3 <-
+      paste0(
+        "This implies that customers are willing to wait ",
+        100 * (1 / theta) / (eta / mu),
+        "%",
+        " of their job requirement, on average"
+      )
+
+
+
+
+  # the human text:
+  paste(sentence1, sentence2, sentence3, sep = "\n")
+}
+  )
+  txt <- paste0('<div> ', c(rho_text,human_text), '</div>')
+    return(txt)
+
+}
+
+model_info_html(params = res$params)
 ```
 

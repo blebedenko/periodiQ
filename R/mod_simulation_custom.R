@@ -25,6 +25,7 @@ mod_simulation_custom_ui <- function(id) {
     )
   )
   tagList(
+    ## instructions -----
     HTML(
       '<p>This section produces simulations of the process with parameter settings of your choice.</p>
 
@@ -36,77 +37,105 @@ mod_simulation_custom_ui <- function(id) {
 
               <p>Descriptive analyses of the realization will be produced below after the simulation is over.</p>'
     ),
-    ## parameter values choices ----
-    dropdownButton(
-      inline = TRUE,
-      width = 12,
-      circle = FALSE,
-      icon = icon("gear"),
+    fluidRow(
+      ## parameter values choices ----
+      column(width = 8,
+      dropdownButton(
+        # inline = TRUE,
+        # width = 12,
+        circle = FALSE,
+        icon = icon("gear"),
 
-      tooltip = tooltipOptions(title = "Click to see inputs !"),
-      label = "Custom scenario",
-      tags$h3("Choose parameters"),
-      helpText("Job and service:"),
-      numericInput(
-        inputId = NS(id, "mu"),
-        label = HTML("&mu; - shape"),
-        value = 1,
-        min = 0.1,
-        max = 10,
-        step = 0.1
-      ),
-      numericInput(
-        inputId = NS(id, "eta"),
-        label = HTML("&eta; - scale"),
-        value = 1,
-        min = 0.1,
-        max = 10,
-        step = 0.1
-      ),
-      numericInput(
-        inputId = NS(id, "s"),
-        label = "s - number of servers",
-        value = 50,
-        min = 1,
-        max = 100,
-        step = 1L
-      ),
-      # tags$hr(style = "border-color: black;"),
+        tooltip = tooltipOptions(title = "Click to see inputs !"),
+        label = "Change simulation & queue parameters:",
+        tags$h4("sample size:"),
+        ## sample size ----
+        sliderInput(
+          inputId = NS(id, "sample_size"),
+          label = HTML(" "),# "N<sub>eff</sub> - number of arrivals"),
+          value = 2000,
+          min = 1000,
+          max = 100000,
+          step = 1000
+        ),
 
-      helpText("Exponential patience:"),
-      numericInput(
-        inputId = NS(id, "theta"),
-        label = HTML("&theta;"),
-        value = 1,
-        min = 0.1,
-        max = 10,
-        step = 0.1
-      ),
+        ## patience selector ----
+        tags$h4("patience model"),
+        shinyWidgets::radioGroupButtons(
+          inputId = "patience_model",
+          label = " ",
+          choiceNames = list( "determistic",
+                              "exponential"),
 
-      helpText("Intensity function:"),
-      numericInput(
-        inputId = NS(id, "gamma"),
-        label = HTML("&gamma; - the periodical component"),
-        value = 100,
-        min = 0.1,
-        max = 100,
-        step = 0.1
-      ),
-      numericInput(
-        inputId = NS(id, "lambda_0"),
-        label = HTML("&lambda;<sub>0</sub> - the constant component"),
-        value = 50,
-        min = 0.1,
-        max = 100,
-        step = 0.1
+          choiceValues = list("deterministic", "exponential"),
+          justified = F,
+        ),
+        tags$h4("system parameters"),
+        helpText("Job and service:"),
+        numericInput(
+          inputId = NS(id, "mu"),
+          label = HTML("&mu; - shape"),
+          value = 1,
+          min = 0.1,
+          max = 10,
+          step = 0.1
+        ),
+        numericInput(
+          inputId = NS(id, "eta"),
+          label = HTML("&eta; - scale"),
+          value = 1,
+          min = 0.1,
+          max = 10,
+          step = 0.1
+        ),
+        numericInput(
+          inputId = NS(id, "s"),
+          label = "s - number of servers",
+          value = 50,
+          min = 1,
+          max = 100,
+          step = 1L
+        ),
+        # tags$hr(style = "border-color: black;"),
+
+        helpText("Exponential: rate; Determinstic: mean"),
+        numericInput(
+          inputId = NS(id, "theta"),
+          label = HTML("&theta;"),
+          value = 1,
+          min = 0.1,
+          max = 10,
+          step = 0.1
+        ),
+
+        helpText("Intensity function:"),
+        numericInput(
+          inputId = NS(id, "gamma"),
+          label = HTML("&gamma; - the periodical component"),
+          value = 100,
+          min = 0.1,
+          max = 100,
+          step = 0.1
+        ),
+        numericInput(
+          inputId = NS(id, "lambda_0"),
+          label = HTML("&lambda;<sub>0</sub> - the constant component"),
+          value = 50,
+          min = 0.1,
+          max = 100,
+          step = 0.1
+        )
+
       )
     ),
-    ##
-    actionBttn(
-      inputId = "simulation_go",
-      label = "generate!",
-      icon = icon("play"),
-      color = "royal"
+
+    column(width = 4,
+           actionBttn(
+             inputId = ns("simulation_go"),
+             label = "simulate!",
+             style = "unite",
+             color = "primary"
+           ))
     )
 
 
@@ -125,17 +154,27 @@ mod_simulation_custom_server <- function(id) {
     ns <- session$ns
 
 
-    reactive(param_list(
-      gamma = input$gamma,
-      lambda_0 = input$lambda_0,
-      theta =input$theta,
-      eta = input$eta,
-      mu = input$mu,
-      s = input$s
-    ))
+    res <- eventReactive(
+      eventExpr = input$simulation_go,valueExpr = {
+        params <-
+          param_list(
+            gamma = input$gamma,
+            lambda_0 = input$lambda_0,
+            theta = input$theta,
+            eta = input$eta,
+            mu = input$mu,
+            s = input$s,
+            sample_size = input$sample_size
+          )
+
+        simulate_queue(params = params,patience_model = input$patience_model)
+      })
+
+    res # return the results
+
 
   })
-  }
+}
 
 
 ## To be copied in the UI

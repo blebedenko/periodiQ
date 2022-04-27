@@ -58,6 +58,14 @@ mod_plot_res_server <- function(id, res, plot_name, from_to = NULL){
 
                  }
 
+                 if (plot_name == "breakdown"){
+                   output$plot <- renderPlot({
+                     params <- res()[["params"]]
+                     simulator_data <- res()[["simulator"]]
+                     plot_hourly_join_prob_queue(simulator_data, params)
+                   })
+                 }
+
                })
 
   }
