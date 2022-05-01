@@ -1,19 +1,21 @@
 #' The application User-Interface
 #'
 #' @param request Internal parameter for `{shiny}`.
-#'     DO NOT REMOVE.
-#' @import shiny shinydashboard shinydashboardPlus shinyWidgets
+#'     DO NOT REMOVE
+#' @import shiny shinydashboard shinydashboardPlus shinyWidgets keys
 #' @noRd
 app_ui <- function(request) {
   tagList(
     # Leave this function for adding external resources
     golem_add_external_resources(),
     #  UI logic ----
-    shinydashboard::dashboardPage(
+    shinydashboardPlus::dashboardPage(
+      ## keyboard commands ----
       ## header ----
       header = dashboardHeader(),
+      controlbar = dashboardControlbar(shinydashboardPlus::skinSelector()),
       ## sidebar -----
-      sidebar = dashboardSidebar(
+      sidebar = dashboardSidebar(collapsed = FALSE,
         sidebarMenu(
           menuItem(
             text = "Home",
@@ -45,19 +47,19 @@ app_ui <- function(request) {
       ),
       ## body ----
       body = shinydashboard::dashboardBody(tabItems(
-        ## welcome ----
+        ### welcome ----
         tabItem("home",
                 mod_welcome_ui("welcome_1")),
-        ## introduction ----
+        ### introduction ----
         tabItem("introduction",
                 # htmlTemplate("template.html",document_ = T)
                 mod_introduction_ui("introduction_1")),
-        ## simulation menu -----
+        ### simulation custom -----
         tabItem( "simulation_custom",
 
                  shinydashboardPlus::box(title = "Instructions",width = 12,collapsible = TRUE,
-                   mod_simulation_custom_ui("simulation_custom_1")),
-
+                   mod_simulation_progress_ui("simulation_custom_1")),
+        ### plots ----
           tabBox(width = 12,
                  tabPanel(title = "Arrivals per time segment",
                           mod_plot_res_ui("plot_res_segments")),
@@ -71,50 +73,12 @@ app_ui <- function(request) {
 
                  tabPanel(title = "Hourly breakdown of the queue",
                           mod_plot_res_ui("plot_res_breakdown"))
-          )),
+          ),
+        ### stats ----
 
-          # ## visualizations ----
-          #
-          #   box(
-          #     title = "Arrivals per time segment",
-          #     collapsible = TRUE,
-          #     collapsed = FALSE,
-          #     #width = 6,
-          #     mod_plot_res_ui("plot_res_segments")
-          #   ),
-          #   box(
-          #     title = "Patience",
-          #     collapsible = TRUE,
-          #     collapsed = FALSE,
-          #     #width = 6,
-          #     mod_plot_res_ui("plot_res_patience")
-          #   ),
-          # box(
-          #   title = "Queue during time interval",
-          #   collapsible = TRUE,
-          #   collapsed = FALSE,
-          #   #width = 6,
-          #   mod_plot_res_ui("plot_res_interval"),
-          #   uiOutput("res_interval_from_to_ui")
-          # ),
-          # box(
-          #   title = "Queue length & averages arrivals",
-          #   collapsible = TRUE,
-          #   collapsed = FALSE,
-          #   #width = 6,
-          #   mod_plot_res_ui("plot_res_hourly")
-          # ),
-          # box(
-          #   title = "Hourly breakdown of the queue",
-          #   collapsible = TRUE,
-          #   collapsed = FALSE,
-          #   #width = 6,
-          #   mod_plot_res_ui("plot_res_breakdown")
-          # ),
 
-          ## plot in tab box
+        ),
 
-          # ),
         ## pre-generated ---
         tabItem(tabName = "simulation_pregenerated",
                 mod_simulation_pregenerated_ui("simulation_pregenerated_1"),
@@ -125,7 +89,9 @@ app_ui <- function(request) {
                                 mod_plot_res_ui("plot_pre_patience")),
 
                        tabPanel(title = "Queue during time interval",
-                                mod_plot_res_ui("plot_pre_interval")),
+                                fluidRow(
+                               sliderInput(inputId = "from_to",label = "Time interval",min = 0,max = 1.1,value = c(0,1)),
+                                mod_plot_res_ui("plot_pre_interval"))),
 
                        tabPanel(title = "Queue  & average arrivals",
                                 mod_plot_res_ui("plot_pre_hourly")),

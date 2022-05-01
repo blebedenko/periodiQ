@@ -6,6 +6,8 @@
 #' @param eta shape parameter of the job size.
 #' @param mu rate parameter of the job size.
 #' @param s number of servers
+#' @param sample_size number of required effective arrivals
+#' @param patience_model "exponential" or "deterministic" (can be abbreviated)
 #' @return named list with all the relevant parameters.
 #' @importFrom magrittr %>%
 #' @export
@@ -13,7 +15,7 @@
 #' @examples
 #' listParams(gamma=10,lambda_0=20,theta=2.5, eta = 1, mu = 1 , s = 3)
 param_list <-
-  function(gamma, lambda_0, theta, eta, mu, s, sample_size = 1000) {
+  function(gamma, lambda_0, theta, eta, mu, s, sample_size, patience_model) {
     par_list <-
       list(
         gamma = gamma,
@@ -22,7 +24,8 @@ param_list <-
         eta = eta,
         mu = mu,
         s = s,
-        sample_size = sample_size
+        sample_size = sample_size,
+        patience_model = patience_model
       )
     return(par_list)
   }
@@ -45,7 +48,8 @@ function(scenario_name = "C4", sample_size = 1000) {
       eta = 1,
       mu = 1,
       s = 5,
-      sample_size = sample_size
+      sample_size = sample_size,
+      patience_model = "exponential"
     ),
 
     C2 = param_list(
@@ -55,7 +59,8 @@ function(scenario_name = "C4", sample_size = 1000) {
       eta = 1,
       mu = 1,
       s = 10,
-      sample_size = sample_size
+      sample_size = sample_size,
+      patience_model = "exponential"
     ),
 
     C3 = param_list(
@@ -65,7 +70,8 @@ function(scenario_name = "C4", sample_size = 1000) {
       eta = 1,
       mu = 1,
       s = 3,
-      sample_size = sample_size
+      sample_size = sample_size,
+      patience_model = "exponential"
     ),
 
     C4 = param_list(
@@ -75,7 +81,8 @@ function(scenario_name = "C4", sample_size = 1000) {
       eta = 1,
       mu = 1,
       s = 50,
-      sample_size = sample_size
+      sample_size = sample_size,
+      patience_model = "exponential"
     )
   )
 
@@ -136,14 +143,13 @@ next_arrival <- function(current_time, params, model = "cosine") {
 #' @param m number of samples to generate (default = 10000)
 #' @param params parameters
 #' @start_time the clock time at which observation of the process starts
-#' @param model (currently inactive, do not use)
 #' @return A vector of arrival times
 #' @export
 #' @importFrom magrittr %>%
 #' @examples
 #' Ar <- make_arrivals(params = exampleParams())
 #' hist(Ar - trunc(Ar)) # note the cosine structure
-make_arrivals <- function(m = 1000, params, start_time = 0, model = "cosine"){
+make_arrivals <- function(m = 1000, params, start_time = 0){
   arrival_times <- numeric(length = m)
   arrival_times[1] <- next_arrival(current_time = start_time, params = params)
   for (i in 2:m){
@@ -155,24 +161,21 @@ make_arrivals <- function(m = 1000, params, start_time = 0, model = "cosine"){
 
 #' summon a custoer
 #'
-#' @param params  model parameters
-#' @param patience  name of patience distribution - "exponential" (default) or "deterministic".
-#'  Can be abbreviated.
+#' @param params  model parameters which include the patience model name
 #'
 #' @return
 #' @export
 #'
 #' @examples
-summon_customer <- function(params, patience_model = "exponential"){
-  patience <- match.arg(patience_model,choices = c("exponential", "deterministic"))
+summon_customer <- function(params){
+  patience_model <- match.arg(params$patience_model,choices = c("exponential", "deterministic"))
   theta <- params$theta # the patience parameter - 1/mean for exp, the numeric value for determinstic
   eta <- params$eta
   mu <- params$mu
   B <-  stats::rgamma(1, shape = eta, rate = mu) #Job sizes
-  if (patience == "exponential")
-    Y <- stats::rexp(1, theta)
-  if (patience == "deterministic")
-    Y <- theta
+  Y <- switch(patience_model,
+               "exponential" = stats::rexp(1, theta),
+               "deterministic" = theta)
 
   return(list(patience = Y, jobsize = B))
 
@@ -455,7 +458,8 @@ VW <- function(Res.service, s) {
 #' @return The return value, if any, from executing the function.
 #' @importFrom magrittr %>%
 #' @noRd
-simulate_queue <- function(params, patience_model = "exponential", m = 5e4){
+simulate_queue <- function(params, m = 5e4){
+  #   REMEMBER TO USE THIS FUNCTION CODE IN THE PROGRESS BAR MODULE!
   n <- params$sample_size
   if (n > m)
     m <- 10 * n
@@ -512,7 +516,7 @@ simulate_queue <- function(params, patience_model = "exponential", m = 5e4){
 
 
 
-    customer <- summon_customer(params = params, patience_model = patience_model)
+    customer <- summon_customer(params = params)
     B <- customer$jobsize
     Y <- customer$patience
     total_arrived <- total_arrived + 1
@@ -628,7 +632,7 @@ simulate_queue <- function(params, patience_model = "exponential", m = 5e4){
 
     # progress bar
     if (effective_counter %% 1000 == 0)
-      cat(effective_counter %/% 1000,"\n")
+      message(effective_counter %/% 1000,appendLF = TRUE)
 
 
 
@@ -661,6 +665,7 @@ simulate_queue <- function(params, patience_model = "exponential", m = 5e4){
     dplyr::filter(join == 1) %>%
     dplyr:: select(inter, wait, jump)  %>% # inter-effective-arrival, waiting ,  jumps
     dplyr:: rename(A = inter, W = wait, X = jump )
+
 
   RES <- list(
 

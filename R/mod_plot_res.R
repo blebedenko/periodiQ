@@ -54,9 +54,30 @@ mod_plot_res_server <- function(id, res, plot_name, from_to = NULL){
                      simulator_data <- res()[["simulator"]]
                      plot_interval(simulator_data=simulator_data,params=params,from_to = from_to())
 
-                   })
+                   })}
 
-                 }
+                   # if (plot_name == "interval") {
+                   #   output$plot <- renderPlotly({
+                   #     params <- res()[["params"]]
+                   #     simulator_data <- res()[["simulator"]]
+                   #     plot_interval(simulator_data=simulator_data,params=params,from_to = from_to())
+                   #     dat <- res()[["simulator"]]
+                   #     params <- res()[["params"]]
+                   #
+                   #     lambda <- rate_factory(params)
+                   #     dat$rate <- lambda(dat$arrival)
+                   #     dat %>%
+                   #       mutate(queue = as.numeric(scale(queue)),
+                   #              rate = as.numeric(scale(rate))) -> dat
+                   #
+                   #     fig <- plot_ly(data = dat)
+                   #
+                   #     fig %>%
+                   #       add_trace(x = ~ arrival, y = ~queue, mode = "line") %>%
+                   #       add_trace(x = ~ arrival, y = ~rate, mode = "line" )
+                   #   })
+                   # }
+
 
                  if (plot_name == "breakdown"){
                    output$plot <- renderPlot({

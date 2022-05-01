@@ -353,6 +353,7 @@ pltRate <- function(params, n_cycles = 2) {
 
 ```{r}
 a <- Sys.time()
+
 res <-
   simulate_queue(
     params = param_list(
@@ -361,23 +362,24 @@ res <-
       theta = 1,
       eta = 1,
       mu = 1,
-      s = 85,
-      sample_size = 1e4
+      s = 50,
+      sample_size = 1e3,
+      patience_model = "d"
     ),
-    patience_model = "d",
-    m = 1e5
+    
+    m = 1e4
   )
 b <- Sys.time()
 b - a
 ```
 
 ```{r}
-res <- simulate_queue(params = scenario_params(),patience_model = "d")
+#res <- simulate_queue(params = scenario_params(),patience_model = "d")
 ```
 
 
 ```{r}
-
+#res <- res_big
 plot_segments(params = res$params,simulator_data = res$simulator,segment_n = 24)
 plot_patience(res$simulator,res$params)
 ```
@@ -528,5 +530,65 @@ model_info_html <- function(params, digits = 3) {
 }
 
 model_info_html(params = res$params)
+```
+
+
+
+
+```{r}
+# little's law
+dat <- res$simulator
+p_join <- mean(dat$join)
+lambda_mean <- params$lambda_0 + params$gamma / 2  
+lambda_eff <- lambda_mean * p_join
+
+W <- mean(dat$wait)
+#W1 <- mean(dat %>% filter(join==1) %>% pull(wait))
+L <- mean(dat$queue)
+
+c("L" = L, "Wlambda_eff" = lambda_eff * W)
+
+```
+
+```{r}
+cumsum(dat$join)
+
+```
+
+
+
+```{r}
+library(plotly)
+library(plotly)
+
+trace_0 <- rnorm(100, mean = 5)
+trace_1 <- rnorm(100, mean = 0)
+trace_2 <- rnorm(100, mean = -5)
+x <- c(1:100)
+
+data <- data.frame(x, trace_0, trace_1, trace_2)
+
+fig <- plot_ly(data, x = ~x) 
+fig <- fig %>% add_trace(y = ~trace_0, name = 'trace 0',mode = 'lines') 
+fig <- fig %>% add_trace(y = ~trace_1, name = 'trace 1', mode = 'lines+markers') 
+fig <- fig %>% add_trace(y = ~trace_2, name = 'trace 2', mode = 'markers')
+fig
+
+```
+
+
+```{r}
+dat <- res$simulator
+lambda <- rate_factory(res$params)
+dat$rate <- lambda(dat$arrival)
+dat %>% 
+  mutate(queue = as.numeric(scale(queue)),
+         rate = as.numeric(scale(rate))) -> dat
+
+fig <- plot_ly(data = dat)
+
+fig %>% 
+  add_trace(x = ~ arrival, y = ~queue, mode = "line") %>% 
+  add_trace(x = ~ arrival, y = ~rate, mode = "line" )
 ```
 
